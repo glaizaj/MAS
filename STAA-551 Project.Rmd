@@ -1,0 +1,104 @@
+---
+title: "Analysis Section | STAA-551 Project"
+author: "Glaiza Julian"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(knitr)
+library(tidyverse)
+library(dplyr)
+library(corrplot)
+library(rstanarm)
+library(Matrix)
+library(lme4)
+library(boot)
+library(gridExtra)
+```
+
+```{r}
+# Loading data and converting data types where needed
+lpga_df = read.csv("lpga.csv")
+lpga_df$Golfer = as.factor(lpga_df$Golfer)
+
+# Counting null values
+cat("Null values per column:\n")
+print(colSums(is.na(lpga_df)))
+```
+
+```{r}
+cat("\nSummary statistics:\n")
+print(summary(lpga_df))
+```
+
+```{r}
+# Disclaimer: just random notes I took based off the intro summary stats
+
+# Based on correlation results, the highest positive correlation values: rounds, przrnd/pctgrn,przrnd/pctgrn, rounds/avedist, pctgrn. The highest negative correlation values: rounds, avesand/przrnd, aveputt/avedist, pctfrwy/pctgrn, avesand
+
+#Consider transformations around przrnd because of its skewness (left). Also consider further looking into pctfrwy and avesand
+```
+
+#### Pre-Transformation
+
+```{r}
+# Creating and assigning plot points without transformations just yet and plotting it all on a grid to fit it all side by side
+
+# These predictor variables were selected based on signals observed from the summary statistics
+
+p1 = ggplot(lpga_df, aes(rounds, przrnd)) + geom_point()
+p2 = ggplot(lpga_df, aes(pctgrn, przrnd)) + geom_point()
+p3 = ggplot(lpga_df, aes(avesand, rounds)) + geom_point()
+p4 = ggplot(lpga_df, aes(aveputt, przrnd)) + geom_point()
+grid.arrange(p1,p2,p3,p4, ncol=2)
+```
+
+```{r}
+# Creating the linear regression model without transformations
+golf_model = lm(przrnd ~ rounds + avedist + avesand + aveputt, data = lpga_df)
+
+# Outputting the necessary data
+summary(golf_model)
+```
+
+#### Post-Transformation
+
+```{r}
+# This takes our previously defined and plotted points, transforms it using the "log" function on our response variable (przrnd), and plots it all on a grid to fit it all side by side
+p1 = ggplot(lpga_df, aes(rounds, log(przrnd))) + geom_point()
+p2 = ggplot(lpga_df, aes(pctgrn, log(przrnd))) + geom_point()
+p3 = ggplot(lpga_df, aes(pctgrn, log(przrnd))) + geom_point()
+p4 = ggplot(lpga_df, aes(avedist, log(przrnd))) + geom_point()
+grid.arrange(p1,p2,p3,p4, ncol=2)
+```
+
+```{r}
+# Creating the linear regression model using 
+golf_model_transformed = lm(log(przrnd) ~ rounds + avedist + avesand + aveputt, data = lpga_df)
+summary(golf_model_transformed)
+```
+
+#### Plotting Pre/Post-Transformation Residuals
+
+```{r}
+# Pre-Transformation Residuals
+plot(residuals(golf_model))
+abline(0, 0)
+```
+
+```{r}
+# Post-Transformation residuals
+plot(residuals(golf_model_transformed))
+abline(0, 0)
+```
+
+Based off our findings, we can see:
+
+1. avedist and avesand are the two predictor variables that, across pre-transformation & post-transformation, are not statistically significant predictors
+
+2. After applying our transformation, our Adjusted R-Squared values increases, showing a positive indication to the effects of our new model
+
+3. Our residual plot post-transformation also shows a decrease in distance between our reference line and residual points, indicating some stabilization in our variance (homoscedasticty)
